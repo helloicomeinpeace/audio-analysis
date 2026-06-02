@@ -41,14 +41,14 @@ The API is available at `http://localhost:8080`.
 
 ## Makefile Commands
 
-| Command | Description |
-|---------|-------------|
-| `make up` | Build images and start all containers |
-| `make down` | Stop and remove containers |
-| `make migrate` | Create MongoDB indexes |
-| `make test` | Run the full PHPUnit test suite |
-| `make shell` | Open a shell inside the app container |
-| `make logs` | Tail all container logs |
+| Command        | Description                           |
+| -------------- | ------------------------------------- |
+| `make up`      | Build images and start all containers |
+| `make down`    | Stop and remove containers            |
+| `make migrate` | Create MongoDB indexes                |
+| `make test`    | Run the full PHPUnit test suite       |
+| `make shell`   | Open a shell inside the app container |
+| `make logs`    | Tail all container logs               |
 
 ---
 
@@ -59,12 +59,14 @@ The API is available at `http://localhost:8080`.
 Upload a voice note `.mp3` for analysis.
 
 **Request**
+
 ```
 Content-Type: multipart/form-data
 Field: audio (file, .mp3, max 10 MB)
 ```
 
 **Upload flow:**
+
 ```
 Validate → SHA-256 hash → duplicate? ──YES──▶ 200 (always sync)
                                │
@@ -78,6 +80,7 @@ Validate → SHA-256 hash → duplicate? ──YES──▶ 200 (always sync)
 ```
 
 **Response — new upload, fewer than 10 total (201)**
+
 ```json
 {
   "id": "683d2a1f4e3b2c0012ab1234",
@@ -108,6 +111,7 @@ Validate → SHA-256 hash → duplicate? ──YES──▶ 200 (always sync)
 ```
 
 **Response — new upload, 10 or more total (202)**
+
 ```json
 {
   "job_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -125,6 +129,7 @@ Validate → SHA-256 hash → duplicate? ──YES──▶ 200 (always sync)
 Same shape as 201, with `"is_duplicate": true` and `"original_upload_id"` set.
 
 **Response — validation error (422)**
+
 ```json
 {
   "message": "The audio field must be a file of type: mp3.",
@@ -139,11 +144,13 @@ Same shape as 201, with `"is_duplicate": true` and `"original_upload_id"` set.
 Poll for a queued analysis result.
 
 **Queued or processing (200)**
+
 ```json
 { "job_id": "...", "status": "processing", "audio_file": null }
 ```
 
 **Completed (200)**
+
 ```json
 {
   "job_id": "...",
@@ -153,6 +160,7 @@ Poll for a queued analysis result.
 ```
 
 **Failed (200)**
+
 ```json
 {
   "job_id": "...",
@@ -191,6 +199,7 @@ Poll for a queued analysis result.
 ```
 
 **Request flow:**
+
 1. Nginx receives the request and forwards to PHP-FPM (port 9000)
 2. `UploadAudioRequest` validates file type and size
 3. `DuplicateDetectionService` computes SHA-256 and checks MongoDB for a match
@@ -200,15 +209,15 @@ Poll for a queued analysis result.
 
 **Key source files:**
 
-| File | Responsibility |
-|------|---------------|
-| `app/Http/Controllers/AudioController.php` | Orchestrates upload, routes sync vs async |
-| `app/Http/Controllers/AudioJobController.php` | Job status polling |
-| `app/Services/AudioAnalysisService.php` | Duration, outlier detection, quality score |
-| `app/Services/DuplicateDetectionService.php` | SHA-256 hashing, MongoDB lookup |
-| `app/Jobs/AnalyzeAudioJob.php` | Background analysis worker |
-| `app/Models/AudioFile.php` | MongoDB document model |
-| `app/Models/AudioJob.php` | Job tracking document model |
+| File                                          | Responsibility                             |
+| --------------------------------------------- | ------------------------------------------ |
+| `app/Http/Controllers/AudioController.php`    | Orchestrates upload, routes sync vs async  |
+| `app/Http/Controllers/AudioJobController.php` | Job status polling                         |
+| `app/Services/AudioAnalysisService.php`       | Duration, outlier detection, quality score |
+| `app/Services/DuplicateDetectionService.php`  | SHA-256 hashing, MongoDB lookup            |
+| `app/Jobs/AnalyzeAudioJob.php`                | Background analysis worker                 |
+| `app/Models/AudioFile.php`                    | MongoDB document model                     |
+| `app/Models/AudioJob.php`                     | Job tracking document model                |
 
 ---
 
@@ -221,6 +230,7 @@ make test
 Tests use an in-memory MongoDB instance (via `mongodb/laravel-mongodb` test helpers) and `UploadedFile::fake()`. No real MP3 files or running containers required.
 
 **Coverage:**
+
 - Unit: quality scoring, outlier detection (fixed + log-IQR), duration formatting
 - Feature: upload flow (sync 201, async 202, duplicate 200, invalid 422), job polling
 
@@ -257,17 +267,17 @@ The `encoder` and `vbr_quality` fields are read from the LAME Info tag. Files ca
 
 `james-heinrich/getid3` extracts the following fields directly from the MP3 binary — no audio decoding required:
 
-| getID3 field | Value | Used for |
-|---|---|---|
-| `playtime_seconds` | duration in seconds | Duration + outlier |
-| `audio.bitrate` | bits per second | Quality score |
-| `audio.bitrate_mode` | `cbr`, `vbr`, `abr` | Quality score |
-| `audio.sample_rate` | Hz | Quality score |
-| `audio.channels` | 1 or 2 | Quality score |
-| `audio.channelmode` | `mono`, `stereo`, `joint stereo` | Quality score |
-| `audio.encoder` | e.g. `LAME 3.99.5` | Stored, informational |
-| `mpeg.audio.LAME.lowpass_filter` | Hz (nullable) | Quality score |
-| `mpeg.audio.LAME.vbr_quality` | 0–9 preset (nullable) | Quality score |
+| getID3 field                     | Value                            | Used for              |
+| -------------------------------- | -------------------------------- | --------------------- |
+| `playtime_seconds`               | duration in seconds              | Duration + outlier    |
+| `audio.bitrate`                  | bits per second                  | Quality score         |
+| `audio.bitrate_mode`             | `cbr`, `vbr`, `abr`              | Quality score         |
+| `audio.sample_rate`              | Hz                               | Quality score         |
+| `audio.channels`                 | 1 or 2                           | Quality score         |
+| `audio.channelmode`              | `mono`, `stereo`, `joint stereo` | Quality score         |
+| `audio.encoder`                  | e.g. `LAME 3.99.5`               | Stored, informational |
+| `mpeg.audio.LAME.lowpass_filter` | Hz (nullable)                    | Quality score         |
+| `mpeg.audio.LAME.vbr_quality`    | 0–9 preset (nullable)            | Quality score         |
 
 **Why:** De-facto standard PHP audio library. Pure PHP — no shell dependencies (`ffprobe`, `mediainfo`) that would complicate the Docker image or introduce shell injection risk. Actively maintained, MIT licensed.
 
@@ -291,17 +301,20 @@ Stored in MongoDB with a unique index on `file_hash`. On every upload, the hash 
 
 **Future: Large File Deduplication (Merkle Proof Strategy)**
 For a system that ingests large audio files — audiobooks, ebooks, long recordings — full-file SHA-256 is impractical:
+
 - Memory: loading a 500 MB audiobook into RAM for hashing is expensive.
 - Streaming: large files should be processed as streams, not buffers.
 - Partial duplicates: a re-encoded or trimmed audiobook would not match a full-file hash.
 
 The correct approach for large files is a **chunked Merkle tree**:
+
 1. Split the file into fixed-size chunks (e.g., 1 MB each).
 2. Compute SHA-256 of each chunk.
 3. Build a Merkle tree from the chunk hashes.
 4. The **Merkle root** becomes the file fingerprint.
 
 This enables:
+
 - Streaming ingestion (no full file in memory)
 - Partial-duplicate detection (matching subtrees reveal shared content)
 - Efficient re-verification (only re-hash changed chunks)
@@ -312,10 +325,10 @@ For this assignment, the simple full-file SHA-256 is correct and sufficient.
 
 ### 3. Adaptive Outlier Detection
 
-| Condition | Strategy |
-|-----------|----------|
-| `AudioFile::count() < 10` | Fixed thresholds: flag if `< 2s` or `> 180s` |
-| `AudioFile::count() >= 10` | Log-transform + IQR on all stored durations |
+| Condition                  | Strategy                                     |
+| -------------------------- | -------------------------------------------- |
+| `AudioFile::count() < 10`  | Fixed thresholds: flag if `< 2s` or `> 180s` |
+| `AudioFile::count() >= 10` | Log-transform + IQR on all stored durations  |
 
 **Why not plain IQR on a skewed distribution:**
 
@@ -344,23 +357,23 @@ The primary quality signal. For LAME-encoded VBR files, the stored VBR quality p
 
 **VBR path (LAME `vbr_quality` tag present):**
 
-| LAME preset | Typical avg kbps | Points | Notes |
-|-------------|-----------------|--------|-------|
-| V0–V1 | ~245+ kbps | 4 | Transparent; indistinguishable from lossless |
-| V2–V3 | ~190 kbps | 3 | High quality; artefacts inaudible to most |
-| V4–V5 | ~165 kbps | 2 | Medium quality |
-| V6–V7 | ~130 kbps | 1 | Lower quality; some artefacts |
-| V8–V9 | ~100 kbps | 0 | Very low quality |
+| LAME preset | Typical avg kbps | Points | Notes                                        |
+| ----------- | ---------------- | ------ | -------------------------------------------- |
+| V0–V1       | ~245+ kbps       | 4      | Transparent; indistinguishable from lossless |
+| V2–V3       | ~190 kbps        | 3      | High quality; artefacts inaudible to most    |
+| V4–V5       | ~165 kbps        | 2      | Medium quality                               |
+| V6–V7       | ~130 kbps        | 1      | Lower quality; some artefacts                |
+| V8–V9       | ~100 kbps        | 0      | Very low quality                             |
 
 **CBR / ABR / fallback path (bitrate-based):**
 
-| kbps | Points |
-|------|--------|
-| ≥ 256 | 4 |
-| ≥ 192 | 3 |
-| ≥ 128 | 2 |
-| ≥ 64  | 1 |
-| < 64  | 0 |
+| kbps  | Points |
+| ----- | ------ |
+| ≥ 256 | 4      |
+| ≥ 192 | 3      |
+| ≥ 128 | 2      |
+| ≥ 64  | 1      |
+| < 64  | 0      |
 
 **Why prefer the VBR quality tag over average bitrate:** VBR encodes difficult passages at higher bitrates and simple passages at lower bitrates. A VBR V0 file averaging 210 kbps is perceptually equivalent to CBR 320 kbps on most content. Scoring by average bitrate alone would undervalue it. The LAME quality tag (stored in the Xing/Info header of every LAME-encoded file) is a direct expression of the encoder's quality target.
 
@@ -370,11 +383,11 @@ The primary quality signal. For LAME-encoded VBR files, the stored VBR quality p
 
 MP3 encoders apply a low-pass filter before encoding to discard frequencies above a cutoff — high frequencies are expensive to encode and are cut to save bits. The cutoff is written into the LAME info tag.
 
-| Cutoff (Hz) | Points | Meaning |
-|-------------|--------|---------|
-| ≥ 19,500 | 2 | Full audible range; transparent |
-| ≥ 16,000 | 1 | Slight high-frequency rolloff |
-| < 16,000 | 0 | Audible loss of high frequencies |
+| Cutoff (Hz) | Points | Meaning                          |
+| ----------- | ------ | -------------------------------- |
+| ≥ 19,500    | 2      | Full audible range; transparent  |
+| ≥ 16,000    | 1      | Slight high-frequency rolloff    |
+| < 16,000    | 0      | Audible loss of high frequencies |
 
 If no LAME info tag is present (non-LAME encoder), the cutoff is estimated as `sample_rate / 2 × 0.9` (a conservative Nyquist approximation).
 
@@ -386,30 +399,30 @@ If no LAME info tag is present (non-LAME encoder), the cutoff is estimated as `s
 
 Determines the theoretical maximum reproducible frequency (Nyquist = sample_rate / 2).
 
-| Hz | Points | Notes |
-|----|--------|-------|
-| ≥ 44,100 | 2 | CD standard; 22 kHz ceiling |
-| ≥ 22,050 | 1 | Half-rate; 11 kHz ceiling (FM radio) |
-| < 22,050 | 0 | Telephone quality |
+| Hz       | Points | Notes                                |
+| -------- | ------ | ------------------------------------ |
+| ≥ 44,100 | 2      | CD standard; 22 kHz ceiling          |
+| ≥ 22,050 | 1      | Half-rate; 11 kHz ceiling (FM radio) |
+| < 22,050 | 0      | Telephone quality                    |
 
 ---
 
 #### Component 4 — Bitrate Mode / VBR Bonus (0–1 pt)
 
-| Mode | Points | Reasoning |
-|------|--------|-----------|
-| VBR | 1 | Content-adaptive; allocates bits where complexity demands them |
-| CBR | 0 | Fixed allocation; wastes bits on simple passages, starves complex ones |
-| ABR | 0 | Targets an average bitrate with limited variation; a compromise |
+| Mode | Points | Reasoning                                                              |
+| ---- | ------ | ---------------------------------------------------------------------- |
+| VBR  | 1      | Content-adaptive; allocates bits where complexity demands them         |
+| CBR  | 0      | Fixed allocation; wastes bits on simple passages, starves complex ones |
+| ABR  | 0      | Targets an average bitrate with limited variation; a compromise        |
 
 ---
 
 #### Component 5 — Channel Mode (0–1 pt)
 
-| Mode | Points | Notes |
-|------|--------|-------|
-| Stereo / Joint Stereo | 1 | Full spatial information |
-| Mono / Dual Channel | 0 | Single-channel; acceptable for voice notes |
+| Mode                  | Points | Notes                                      |
+| --------------------- | ------ | ------------------------------------------ |
+| Stereo / Joint Stereo | 1      | Full spatial information                   |
+| Mono / Dual Channel   | 0      | Single-channel; acceptable for voice notes |
 
 **Joint Stereo vs. Stereo:** Joint stereo encodes the sum (mid) and difference (side) channels separately, allowing more efficient bit allocation. It is generally equal to or better than simple stereo at the same bitrate and is the standard mode for LAME.
 
@@ -417,24 +430,24 @@ Determines the theoretical maximum reproducible frequency (Nyquist = sample_rate
 
 #### Scoring Summary
 
-| Component | Max | Signal source |
-|-----------|-----|---------------|
-| Effective bitrate | 4 | `vbr_quality` → `bitrate` fallback |
-| Low-pass filter | 2 | `mpeg.audio.LAME.lowpass_filter` |
-| Sample rate | 2 | `audio.sample_rate` |
-| Bitrate mode | 1 | `audio.bitrate_mode` |
-| Channel mode | 1 | `audio.channelmode` |
-| **Total** | **10** | minimum 1 |
+| Component         | Max    | Signal source                      |
+| ----------------- | ------ | ---------------------------------- |
+| Effective bitrate | 4      | `vbr_quality` → `bitrate` fallback |
+| Low-pass filter   | 2      | `mpeg.audio.LAME.lowpass_filter`   |
+| Sample rate       | 2      | `audio.sample_rate`                |
+| Bitrate mode      | 1      | `audio.bitrate_mode`               |
+| Channel mode      | 1      | `audio.channelmode`                |
+| **Total**         | **10** | minimum 1                          |
 
 **Worked examples:**
 
-| File | Bitrate | Low-pass | Sample rate | Mode | Channels | Score |
-|------|---------|----------|-------------|------|----------|-------|
-| VBR V0 / 44100 Hz / joint stereo / 19500 Hz | 4 | 2 | 2 | 1 | 1 | **10** |
-| CBR 128 kbps / 44100 Hz / mono / 16000 Hz (typical voice note) | 2 | 1 | 2 | 0 | 0 | **5** |
-| CBR 192 kbps / 44100 Hz / stereo / 18000 Hz | 3 | 1 | 2 | 0 | 1 | **7** |
-| CBR 64 kbps / 22050 Hz / mono / 12000 Hz | 1 | 0 | 1 | 0 | 0 | **2** |
-| VBR V2 / 44100 Hz / joint stereo / 19500 Hz | 3 | 2 | 2 | 1 | 1 | **9** |
+| File                                                           | Bitrate | Low-pass | Sample rate | Mode | Channels | Score  |
+| -------------------------------------------------------------- | ------- | -------- | ----------- | ---- | -------- | ------ |
+| VBR V0 / 44100 Hz / joint stereo / 19500 Hz                    | 4       | 2        | 2           | 1    | 1        | **10** |
+| CBR 128 kbps / 44100 Hz / mono / 16000 Hz (typical voice note) | 2       | 1        | 2           | 0    | 0        | **5**  |
+| CBR 192 kbps / 44100 Hz / stereo / 18000 Hz                    | 3       | 1        | 2           | 0    | 1        | **7**  |
+| CBR 64 kbps / 22050 Hz / mono / 12000 Hz                       | 1       | 0        | 1           | 0    | 0        | **2**  |
+| VBR V2 / 44100 Hz / joint stereo / 19500 Hz                    | 3       | 2        | 2           | 1    | 1        | **9**  |
 
 ---
 
@@ -480,14 +493,14 @@ The system is described as a **high-volume write system**. MongoDB is selected f
 
 ### 8. HTTP Status Codes
 
-| Scenario | Status | Reasoning |
-|---------|--------|-----------|
-| New upload, sync analysis | 201 Created | A new resource was created |
-| New upload, queued | 202 Accepted | Request accepted; processing not yet complete |
-| Duplicate detected | 200 OK | No new resource; returning existing analysis data |
-| Job status poll (any state) | 200 OK | Informational — the poll itself always succeeds |
-| Job not found | 404 Not Found | |
-| Validation failure | 422 Unprocessable Entity | File is wrong type, too large, or missing |
+| Scenario                    | Status                   | Reasoning                                         |
+| --------------------------- | ------------------------ | ------------------------------------------------- |
+| New upload, sync analysis   | 201 Created              | A new resource was created                        |
+| New upload, queued          | 202 Accepted             | Request accepted; processing not yet complete     |
+| Duplicate detected          | 200 OK                   | No new resource; returning existing analysis data |
+| Job status poll (any state) | 200 OK                   | Informational — the poll itself always succeeds   |
+| Job not found               | 404 Not Found            |                                                   |
+| Validation failure          | 422 Unprocessable Entity | File is wrong type, too large, or missing         |
 
 **Why 200 (not 409 Conflict) for duplicates:** Returning 409 would force the client to make a second request to retrieve the analysis data. Returning 200 with the full analysis is more useful.
 
@@ -497,14 +510,14 @@ The system is described as a **high-volume write system**. MongoDB is selected f
 
 ## Trade-offs
 
-| Decision | Trade-off |
-|---------|-----------|
-| MongoDB | High write throughput, last-write-wins safety. Heavier than SQLite; overkill for low traffic. |
-| MongoDB queue driver | No Redis container. Slower than Redis at very high job throughput. |
-| Full-file SHA-256 hash | Simple and accurate for small voice notes. Not suitable for large files. |
-| Fixed thresholds < 10 records | Reliable at low data volumes. Not adaptive. |
-| Log-IQR ≥ 10 records | Handles right-skewed distributions. Queries all durations on each upload. |
-| Sync < 10 / async ≥ 10 | No queue infrastructure until the dataset justifies it. |
+| Decision                      | Trade-off                                                                                     |
+| ----------------------------- | --------------------------------------------------------------------------------------------- |
+| MongoDB                       | High write throughput, last-write-wins safety. Heavier than SQLite; overkill for low traffic. |
+| MongoDB queue driver          | No Redis container. Slower than Redis at very high job throughput.                            |
+| Full-file SHA-256 hash        | Simple and accurate for small voice notes. Not suitable for large files.                      |
+| Fixed thresholds < 10 records | Reliable at low data volumes. Not adaptive.                                                   |
+| Log-IQR ≥ 10 records          | Handles right-skewed distributions. Queries all durations on each upload.                     |
+| Sync < 10 / async ≥ 10        | No queue infrastructure until the dataset justifies it.                                       |
 
 ---
 
@@ -516,5 +529,4 @@ The system is described as a **high-volume write system**. MongoDB is selected f
 - Rate limiting on the upload endpoint
 - MongoDB replica set in docker-compose for production-grade durability
 - Streaming SHA-256 using `hash_update_stream`
-- OpenAPI specification
 - Encoder support beyond LAME: extract quality/version metadata from Xing- and Fraunhofer-tagged VBR files (currently `encoder`/`vbr_quality` are `null` for non-LAME files)
